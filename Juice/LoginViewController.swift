@@ -7,7 +7,7 @@ Login view controller.
 
 import UIKit
 import AuthenticationServices
-import TorusSwiftDirectSDK
+import CustomAuth
 import JWTDecode
 
 class LoginViewController: UIViewController {
@@ -64,7 +64,7 @@ extension LoginViewController: ASAuthorizationControllerDelegate {
     func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
         switch authorization.credential {
         case let appleIDCredential as ASAuthorizationAppleIDCredential:
-            
+            dump(appleIDCredential)
             // Create an account in your system.
             let userIdentifier = appleIDCredential.user
 //            let fullName = appleIDCredential.fullName
@@ -78,19 +78,37 @@ extension LoginViewController: ASAuthorizationControllerDelegate {
                 print("sub missing")
                 return
             }
-            
-            // initializeSDK
-            let tdsdk = TorusSwiftDirectSDK(aggregateVerifierType: .singleLogin, aggregateVerifierName: "apple-native", subVerifierDetails: [], network: .ROPSTEN, loglevel: .error)
-            tdsdk.getTorusKey(verifier: "apple-native", verifierId: sub, idToken: token).done{ data in
-                print(data)
-                let alert = UIAlertController(title: "Private Key", message: data["privateKey"] as? String, preferredStyle: UIAlertController.Style.alert)
-                alert.addAction(UIAlertAction(title: "OK", style: UIAlertAction.Style.default, handler: nil))
-                self.present(alert, animated: true, completion: nil)
-                
-            }.catch{ error in
-                print(error)
+
+
+            Task {
+                // initializeSDK
+                let tdsdk = CustomAuth(aggregateVerifierType: .singleLogin,
+                                       aggregateVerifier: "apple-jwt-mainnet",
+                                       subVerifierDetails: [],
+                                       network: .CYAN,
+                                       loglevel: .error
+                )
+                let data = try await tdsdk.getTorusKey(verifier: "apple-jwt-mainnet",
+                                                       verifierId: sub,
+                                                       idToken: token
+                )
+               // let data = try await tdsdk.triggerLogin(verifier: "apple-native", verifierId: sub, idToken: token)
+
+
+
+                //{ data in
+                await MainActor.run(body: {
+                    dump(data)
+
+                    let alert = UIAlertController(title: "Private Key", message: data["privateKey"] as? String, preferredStyle: UIAlertController.Style.alert)
+                    alert.addAction(UIAlertAction(title: "OK", style: UIAlertAction.Style.default, handler: nil))
+                    self.present(alert, animated: true, completion: nil)
+
+                    //                }.catch{ error in
+                    //                    print(error)
+                    //                }
+                })
             }
-            
             // For the purpose of this demo app, store the `userIdentifier` in the keychain.
             self.saveUserInKeychain(userIdentifier)
             
