@@ -64,41 +64,65 @@ extension LoginViewController: ASAuthorizationControllerDelegate {
     func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
         switch authorization.credential {
         case let appleIDCredential as ASAuthorizationAppleIDCredential:
-            dump(appleIDCredential)
+
+            print("---> appleIDCredential.identityToken: \(appleIDCredential.identityToken!.toHexString())")
+
+
+            dump(appleIDCredential, name: "appleIDCredential")
             // Create an account in your system.
             let userIdentifier = appleIDCredential.user
 //            let fullName = appleIDCredential.fullName
 //            let email = appleIDCredential.email
             
             let token = String(data: appleIDCredential.identityToken!, encoding: .utf8)!
+            print("---> token: \(token)")
+
             let JWT = try? JWTDecode.decode(jwt: token) 
-            
+
+            dump(JWT, name: "---> JWT")
             let claim = JWT?.claim(name: "sub")
+
+            dump(claim, name: "--->  claim")
+
             guard let sub = claim?.string else {
-                print("sub missing")
+                print("---> sub missing")
                 return
             }
+            print ("---> sub: \(sub)")
 
 
             Task {
                 // initializeSDK
+                print("---> initializeSDK: ")
                 let tdsdk = CustomAuth(aggregateVerifierType: .singleLogin,
-                                       aggregateVerifier: "apple-jwt-mainnet",
+                                       aggregateVerifier: "apple-jwt-cyan-adhoc",
                                        subVerifierDetails: [],
                                        network: .CYAN,
-                                       loglevel: .error
+                                       loglevel: .debug
                 )
-                let data = try await tdsdk.getTorusKey(verifier: "apple-jwt-mainnet",
+
+
+//                print("---> Calling getAggregateTorusKey() ")
+//                let data = try await tdsdk.getAggregateTorusKey(verifier: "apple-jwt-cyan-adhoc",
+//                                                       verifierId: sub,
+//                                                       idToken: token
+//                )
+//                print("---> Calling getAggregateTorusKey()  -> DONE")
+
+                print("---> Calling getTorusKey() ")
+
+                let data = try await tdsdk.getTorusKey(verifier: "apple-jwt-cyan-adhoc",
                                                        verifierId: sub,
                                                        idToken: token
                 )
                // let data = try await tdsdk.triggerLogin(verifier: "apple-native", verifierId: sub, idToken: token)
 
+                print("---> Calling getTorusKey()  -> DONE")
 
 
                 //{ data in
                 await MainActor.run(body: {
-                    dump(data)
+                    dump(data, name: "---> getTorusKey() result: ")
 
                     let alert = UIAlertController(title: "Private Key", message: data["privateKey"] as? String, preferredStyle: UIAlertController.Style.alert)
                     alert.addAction(UIAlertAction(title: "OK", style: UIAlertAction.Style.default, handler: nil))
